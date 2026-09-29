@@ -28,18 +28,42 @@ Metrics read from the saved checkpoints. These are **validation-split** numbers 
 
 What this means: at the default setting the model finds roughly 4 in 10 labeled items. Counts from this system are therefore **lower bounds**.
 
-## Install
+## Quick start
 
-Python 3.10 to 3.12. PyTorch 2.5.1, which the checkpoints need, has no builds for 3.13 or newer. On a Mac with Homebrew: `brew install python@3.12`.
+You need **Git** and **Python 3.10 to 3.12**. Python 3.13 or newer will not work: PyTorch 2.5.1, which the model files need, has no builds for it. The first install downloads about 1 GB and takes 3 to 5 minutes.
+
+**macOS**
 
 ```bash
+brew install python@3.12
+git clone https://github.com/trash-detector-project/trash-detector.git
+cd trash-detector
 python3.12 -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env              # then edit .env
+cp .env.example .env
+python main.py
 ```
 
-The checkpoints were trained with the [THU-MIG YOLOv10 fork](https://github.com/THU-MIG/yolov10), which `requirements.txt` installs.
+The first time, macOS blocks the camera. Allow Terminal in System Settings, Privacy & Security, Camera, then quit Terminal (Cmd+Q), reopen it, `cd` back into the folder, run `source venv/bin/activate`, and run `python main.py` again.
+
+**Windows (PowerShell).** Install Python 3.12 from [python.org](https://www.python.org/downloads/) and tick "Add python.exe to PATH". Then:
+
+```powershell
+git clone https://github.com/trash-detector-project/trash-detector.git
+cd trash-detector
+py -3.12 -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+python main.py
+```
+
+**Linux.** Same as macOS, using your package manager for Python 3.12.
+
+A window opens showing the camera with a box around anything the model thinks is litter, plus two numbers: how many items are in view and how many have been counted. Press Esc to quit. Windows and Linux setups have not been tested yet; please open an issue if something breaks.
+
+The model files were trained with the [THU-MIG YOLOv10 fork](https://github.com/THU-MIG/yolov10), which `requirements.txt` installs.
 
 ## Run it live
 
@@ -47,7 +71,7 @@ The checkpoints were trained with the [THU-MIG YOLOv10 fork](https://github.com/
 python main.py
 ```
 
-- `SHOW_WINDOW=true` in `.env` opens a video window (press Esc to quit). Leave it `false` on a headless device.
+- The video window is on by default (press Esc to quit). Set `SHOW_WINDOW=false` in `.env` on a device with no screen.
 - `CAMERA_SOURCE=0` is the first webcam; set it to a file path or stream URL to run on video.
 - On macOS, allow the camera for Terminal (System Settings, Privacy & Security, Camera), then quit and reopen Terminal.
 - API: `GET /trash-count` (returns `in_view` and `total`), `GET /status`, `GET /health`, WebSocket `/ws/trash-count`.
@@ -127,7 +151,8 @@ It prints mean absolute error and percent error and writes `results/count_eval.c
 - Added `line` counting mode for walking surveys, with `LINE_POSITION` and `LINE_DIRECTION` settings.
 - Added `tests/test_counting_modes.py`.
 - `/` now returns a short index instead of a 404.
-- Install notes now say Python 3.10 to 3.12.
+- Added a Quick start with clone and setup steps for macOS, Windows and Linux.
+- The video window is now on by default.
 
 **v0.2**
 - Fixed: tracker received `x1,y1,x2,y2` boxes where DeepSORT expects `left,top,width,height`.

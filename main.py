@@ -28,7 +28,7 @@ MODEL_PATH = os.getenv("MODEL_PATH", "models/best_one_class.pt")
 CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
 TRASH_THRESHOLD = int(os.getenv("TRASH_THRESHOLD", "5"))
 CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "0")
-SHOW_WINDOW = os.getenv("SHOW_WINDOW", "false").lower() == "true"
+SHOW_WINDOW = os.getenv("SHOW_WINDOW", "true").lower() == "true"  # set false on a headless device
 EVENTS_FILE = os.getenv("EVENTS_FILE", "detections.jsonl")
 S3_BUCKET = os.getenv("S3_BUCKET")
 API_KEY = os.getenv("API_KEY")  # if set, POST endpoints require an X-API-Key header
