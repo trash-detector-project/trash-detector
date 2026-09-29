@@ -5,6 +5,7 @@ const WS_URL = (process.env.REACT_APP_API_URL || 'http://localhost:8000').replac
 
 const TrashCount = () => {
   const [trashCount, setTrashCount] = useState(null);
+  const [inView, setInView] = useState(null);
   const [live, setLive] = useState(false);
 
   useEffect(() => {
@@ -22,7 +23,11 @@ const TrashCount = () => {
     try {
       socket = new WebSocket(WS_URL);
       socket.onopen = () => setLive(true);
-      socket.onmessage = (e) => setTrashCount(JSON.parse(e.data).count);
+      socket.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        setTrashCount(data.count);
+        setInView(data.in_view);
+      };
       socket.onclose = () => {
         setLive(false);
         pollTimer = setInterval(poll, 3000); // fall back to polling if the socket drops
@@ -41,7 +46,8 @@ const TrashCount = () => {
   return (
     <div>
       <h2>Trash Count</h2>
-      <p>Total trash detected: {trashCount === null ? '...' : trashCount}</p>
+      <p>In view now: {inView === null ? '...' : inView}</p>
+      <p>Total counted: {trashCount === null ? '...' : trashCount}</p>
       <p style={{ fontSize: '0.8em' }}>{live ? 'Live' : 'Polling every 3s'}</p>
     </div>
   );

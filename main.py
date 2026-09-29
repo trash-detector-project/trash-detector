@@ -32,6 +32,9 @@ SHOW_WINDOW = os.getenv("SHOW_WINDOW", "false").lower() == "true"
 EVENTS_FILE = os.getenv("EVENTS_FILE", "detections.jsonl")
 S3_BUCKET = os.getenv("S3_BUCKET")
 API_KEY = os.getenv("API_KEY")  # if set, POST endpoints require an X-API-Key header
+COUNT_MODE = os.getenv("COUNT_MODE", "track").lower()          # track (fixed camera) or line (walking survey)
+LINE_POSITION = float(os.getenv("LINE_POSITION", "0.8"))        # counting line height, fraction of frame
+LINE_DIRECTION = os.getenv("LINE_DIRECTION", "down").lower()    # down, up, or any
 MAX_FAILED_READS = 50
 
 logging.basicConfig(
@@ -70,6 +73,15 @@ def log_ph(reading: PHReading, x_api_key: str | None = Header(default=None)):
     return {"status": "success"}
 
 
+@app.get("/")
+def index():
+    return {
+        "message": "Trash Detection API",
+        "count_mode": COUNT_MODE,
+        "endpoints": ["/trash-count", "/status", "/health", "/ws/trash-count"],
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "healthy"}
@@ -77,7 +89,14 @@ def health():
 
 @app.get("/status")
 def status():
-    return {"status": "Monitoring", "model": os.path.basename(MODEL_PATH), "conf_threshold": CONF_THRESHOLD}
+    return {
+        "status": "Monitoring",
+        "model": os.path.basename(MODEL_PATH),
+        "conf_threshold": CONF_THRESHOLD,
+        "count_mode": COUNT_MODE,
+        "line_position": LINE_POSITION if COUNT_MODE == "line" else None,
+        "line_direction": LINE_DIRECTION if COUNT_MODE == "line" else None,
+    }
 
 
 @app.get("/trash-count")
@@ -108,7 +127,8 @@ def _upload_events():
 
 
 def detection_loop():
-    counter = TrashCounter(MODEL_PATH, CONF_THRESHOLD)
+    counter = TrashCounter(MODEL_PATH, CONF_THRESHOLD, COUNT_MODE, LINE_POSITION, LINE_DIRECTION)
+    logging.info("start count_mode=%s line_position=%s line_direction=%s", COUNT_MODE, LINE_POSITION, LINE_DIRECTION)
     cap = initialize_camera(CAMERA_SOURCE)
     failed_reads = 0
 
@@ -128,6 +148,7 @@ def detection_loop():
             failed_reads = 0
 
             tracks, events = counter.process(frame)
+            state.set_in_view(counter.in_view)
             for ev in events:
                 record = {"timestamp": datetime.datetime.now().isoformat(timespec="seconds"), **ev.__dict__}
                 events_out.write(json.dumps(record) + "\n")
@@ -148,7 +169,12 @@ def detection_loop():
                     l, t_, r, b = (int(v) for v in t.to_ltrb())
                     cv2.rectangle(frame, (l, t_), (r, b), (255, 0, 0), 2)
                     cv2.putText(frame, f"ID {t.track_id}", (l, t_ - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-                cv2.putText(frame, f"Total: {snap['total']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                if COUNT_MODE == "line":
+                    y = int(counter.line_y(frame.shape[0]))
+                    cv2.line(frame, (0, y), (frame.shape[1], y), (0, 140, 255), 2)
+                cv2.putText(frame, f"In view: {counter.in_view}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                cv2.putText(frame, f"Counted: {snap['total']} ({COUNT_MODE} mode)", (10, 62),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
                 cv2.imshow("Trash detector", frame)
                 if cv2.waitKey(1) & 0xFF == 27:  # Esc quits
                     break
