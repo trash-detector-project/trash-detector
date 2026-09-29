@@ -2,7 +2,7 @@
 
 Counts visible litter in a camera feed or recorded video. Each frame goes through a YOLOv10 detector, a DeepSORT tracker gives every object an ID, and each confirmed ID is counted once. A small FastAPI server exposes the count, and a React page shows it live.
 
-> **Status: v0.2, working prototype.** Detection accuracy has only been measured on the TACO validation split (see Results). It has not yet been tested on field data or compared with hand counts, and there is no map yet. See Roadmap.
+> **Status: v0.3, working prototype.** Detection accuracy has only been measured on the TACO validation split (see Results). It has not yet been tested on field data or compared with hand counts, and there is no map yet. See Roadmap.
 
 ## How it works
 
@@ -30,10 +30,10 @@ What this means: at the default setting the model finds roughly 4 in 10 labeled 
 
 ## Install
 
-Python 3.10 or newer.
+Python 3.10 to 3.12. PyTorch 2.5.1, which the checkpoints need, has no builds for 3.13 or newer. On a Mac with Homebrew: `brew install python@3.12`.
 
 ```bash
-python -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env              # then edit .env
@@ -49,7 +49,8 @@ python main.py
 
 - `SHOW_WINDOW=true` in `.env` opens a video window (press Esc to quit). Leave it `false` on a headless device.
 - `CAMERA_SOURCE=0` is the first webcam; set it to a file path or stream URL to run on video.
-- API: `GET /trash-count`, `GET /status`, `GET /health`, WebSocket `/ws/trash-count`.
+- On macOS, allow the camera for Terminal (System Settings, Privacy & Security, Camera), then quit and reopen Terminal.
+- API: `GET /trash-count` (returns `in_view` and `total`), `GET /status`, `GET /health`, WebSocket `/ws/trash-count`.
 - Every counted item is appended to `detections.jsonl` (time, track ID, class, confidence, box).
 
 Dashboard:
@@ -60,6 +61,29 @@ cp .env.example .env
 npm install
 npm start
 ```
+
+## Counting modes
+
+The window shows two numbers. **In view** is how many pieces of litter are visible right now. **Counted** is the running total, and how it is counted depends on `COUNT_MODE` in `.env`:
+
+| Mode | Use it for | How it counts |
+|---|---|---|
+| `track` (default) | A fixed camera watching one spot | Each tracked object counts once, when the tracker confirms it |
+| `line` | A walking survey (street, beach, park path) | An object counts when its center crosses the orange line in `LINE_DIRECTION` |
+
+Why two modes: the tracker forgets an object after about 30 frames out of view. With a moving camera, panning back to litter you already passed gives it a new ID, so `track` mode counts it again. In `line` mode, walk forward with the camera pointed ahead and down; litter moves down the frame and crosses the line once. Panning sideways moves litter across the frame, not over the line.
+
+`LINE_POSITION` sets the line height as a fraction of the frame (`0.8` is near the bottom). `LINE_DIRECTION` is `down` for walking forward, `up` for walking backward, or `any`.
+
+Synthetic test results (`python tests/test_counting_modes.py`, 3 clips per scenario, boxes fed straight to the tracker):
+
+| Scenario | True count | `track` mode | `line` mode |
+|---|---|---|---|
+| Fixed camera, 3 items | 3 | 3.0 | 0.0 (nothing crosses the line; use `track` here) |
+| Walking forward, 5 items | 5 | 5.0 | 5.0 |
+| Walking forward while sweeping the camera side to side | 5 | 11.7 | 4.0 |
+
+`line` mode can miss an item if the camera is pointed away at the moment that item passes the line. Keep the camera steady and pointed ahead while surveying.
 
 ## Measure counting accuracy
 
@@ -75,6 +99,7 @@ Then:
 
 ```bash
 python count_video.py clips/*.mp4 --hand-counts hand_counts.csv
+python count_video.py clips/*.mp4 --hand-counts hand_counts.csv --mode line   # walking-survey clips
 ```
 
 It prints mean absolute error and percent error and writes `results/count_eval.csv`.
@@ -96,6 +121,13 @@ It prints mean absolute error and percent error and writes `results/count_eval.c
 6. Partner with a cleanup group and measure before/after.
 
 ## Changelog
+
+**v0.3**
+- Added an "in view" count (litter visible right now) to the window, the API and the dashboard.
+- Added `line` counting mode for walking surveys, with `LINE_POSITION` and `LINE_DIRECTION` settings.
+- Added `tests/test_counting_modes.py`.
+- `/` now returns a short index instead of a 404.
+- Install notes now say Python 3.10 to 3.12.
 
 **v0.2**
 - Fixed: tracker received `x1,y1,x2,y2` boxes where DeepSORT expects `left,top,width,height`.

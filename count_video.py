@@ -16,8 +16,8 @@ import cv2
 from pipeline import TrashCounter
 
 
-def count_clip(path, model_path, conf):
-    counter = TrashCounter(model_path, conf)
+def count_clip(path, model_path, conf, mode="track", line=0.8, direction="down"):
+    counter = TrashCounter(model_path, conf, mode, line, direction)
     cap = cv2.VideoCapture(path)
     if not cap.isOpened():
         raise ValueError(f"Could not open {path}")
@@ -38,6 +38,10 @@ def main():
     ap.add_argument("clips", nargs="+")
     ap.add_argument("--model", default="models/best_one_class.pt")
     ap.add_argument("--conf", type=float, default=0.25)
+    ap.add_argument("--mode", choices=["track", "line"], default="track",
+                    help="track: fixed camera. line: walking survey, count when items cross the line")
+    ap.add_argument("--line", type=float, default=0.8, help="counting line height as a fraction of the frame (line mode)")
+    ap.add_argument("--direction", choices=["down", "up", "any"], default="down", help="crossing direction (line mode)")
     ap.add_argument("--hand-counts", help="CSV with columns clip,count")
     ap.add_argument("--out", default="results/count_eval.csv")
     args = ap.parse_args()
@@ -51,7 +55,7 @@ def main():
     rows, abs_errors, pct_errors = [], [], []
     for clip in args.clips:
         name = os.path.basename(clip)
-        predicted, frames, fps = count_clip(clip, args.model, args.conf)
+        predicted, frames, fps = count_clip(clip, args.model, args.conf, args.mode, args.line, args.direction)
         actual = truth.get(name)
         row = {"clip": name, "predicted": predicted, "hand_count": actual, "frames": frames, "fps": round(fps, 1)}
         if actual is not None:
