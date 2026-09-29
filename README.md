@@ -113,7 +113,7 @@ The YOLOv10 code and the weights derived from it are AGPL-3.0. This repository i
 
 ## Credits
 
-- **Maintained by** Naren Ranjith and Aravind Srinivasan, under the [trash-detector-project](https://github.com/trash-detector-project) organization.
+- **Maintained by** Aravind Srinivasan and Naren Ranjith, under the [trash-detector-project](https://github.com/trash-detector-project) organization.
 - **Original code** by Sreeraman Sreebalaji, November 2024: [Ramennn1232007/trash_detector_model_YOLO](https://github.com/Ramennn1232007/trash_detector_model_YOLO). This repository continues that project with its full commit history.
 - **Dataset:** [TACO](http://tacodataset.org) (Proença and Simões, 2020).
 - **Detection model:** [YOLOv10](https://github.com/THU-MIG/yolov10) (THU-MIG). **Tracker:** [deep_sort_realtime](https://github.com/levan92/deep_sort_realtime).
